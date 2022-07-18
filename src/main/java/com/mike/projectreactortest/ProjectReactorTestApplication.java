@@ -5,9 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class ProjectReactorTestApplication {
-
     public static void main(String[] args) {
         SpringApplication.run(ProjectReactorTestApplication.class, args);
     }
-
 }
