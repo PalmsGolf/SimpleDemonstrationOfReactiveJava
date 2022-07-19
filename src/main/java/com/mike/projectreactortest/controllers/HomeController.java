@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -18,10 +19,15 @@ public class HomeController {
         this.homeService = homeService;
     }
 
+    @GetMapping("/message")
+    public String getMessage(@RequestHeader(name = HttpHeaders.USER_AGENT) final String userAgent) {
+        return this.homeService.getHomeMessage();
+    }
 
     @GetMapping("/messages")
-    public List<String> getHomePageInfo(@RequestHeader(name = HttpHeaders.USER_AGENT) final String userAgent) {
-        final List<String> response = this.homeService.getHomePageMessages();
+    public List<String> getMessages(@RequestHeader(name = HttpHeaders.USER_AGENT) final String userAgent) {
+        List<String> response = new ArrayList<>();
+        this.homeService.getHomeMessages().subscribe(response::add);
 
         return response;
     }

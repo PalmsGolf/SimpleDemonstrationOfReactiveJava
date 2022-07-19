@@ -2,3 +2,6 @@ server:
   address: localhost
   port: 8080
   shutdown: graceful
+
+messages-server:
+  base-url: http://127.0.0.1:5555/

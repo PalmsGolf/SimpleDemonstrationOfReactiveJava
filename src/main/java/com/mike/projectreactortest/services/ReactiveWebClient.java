@@ -1,12 +1,12 @@
 package com.mike.projectreactortest.services;
 
 import com.mike.projectreactortest.exceptions.DataBaseException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import reactor.util.retry.RetrySpec;
@@ -19,30 +19,32 @@ public class ReactiveWebClient {
     public static final String TOKEN_HEADER_NAME = "some_header";
     public static final String TOKEN_HEADER_VALUE = "TJaO9YhSt5w7dLxujwLjvg==";
     public static final String EMERGENCY_TOKEN_HEADER_VALUE = "89aFKKA@--22FFwLjvg==";
-    public static final String BASE_PATH = "/server";
     private final WebClient webClient;
+
+    @Value("${messages-server.base-url}")
+    private String serverBaseUrl;
 
     public ReactiveWebClient(final WebClient webClient) {
         this.webClient = webClient;
     }
 
-    public <T> Flux<T> getRequest(final HttpHeaders headers, final String requestPath, final Class<T> elementClass, final MultiValueMap<String, String> queryParams) {
+    public <T> Mono<T> getRequest(final HttpHeaders headers, final String requestPath, final Class<T> elementClass, final MultiValueMap<String, String> queryParams) {
         prepareRequestHeader(headers);
         final URI uri = getRequestUri(requestPath, queryParams);
         final RetrySpec retrySpec = getRetrySpec(headers);
 
-        return Flux.defer(() -> this.webClient
+        return Mono.defer(() -> this.webClient
                         .get()
                         .uri(uri)
                         .headers(consumer -> consumer.putAll(headers))
                         .retrieve()
-                        .bodyToFlux(elementClass))
+                        .bodyToMono(elementClass))
                 .retryWhen(retrySpec)
                 .doOnError(Mono::error);
     }
 
     private URI getRequestUri(final String path, final MultiValueMap<String, String> queryParams) {
-        return UriComponentsBuilder.fromHttpUrl(BASE_PATH)
+        return UriComponentsBuilder.fromHttpUrl(this.serverBaseUrl)
                 .path(path)
                 .queryParams(queryParams)
                 .build()
@@ -57,9 +59,7 @@ public class ReactiveWebClient {
     private RetrySpec getRetrySpec(final HttpHeaders headers) {
         return Retry.max(1)
                 .filter(isDataBaseException())
-                .doBeforeRetry(retrySignal -> {
-                    headers.set(TOKEN_HEADER_NAME, EMERGENCY_TOKEN_HEADER_VALUE);
-                });
+                .doBeforeRetry(retrySignal -> headers.set(TOKEN_HEADER_NAME, EMERGENCY_TOKEN_HEADER_VALUE));
     }
 
     private Predicate<? super Throwable> isDataBaseException() {
