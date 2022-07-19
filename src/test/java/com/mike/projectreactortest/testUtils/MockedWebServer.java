@@ -23,7 +23,6 @@ public class MockedWebServer {
         MockResponse response = new MockResponse()
                 .setResponseCode(status.value())
                 .setBody(responseBody);
-
         this.server.enqueue(response);
     }
 }

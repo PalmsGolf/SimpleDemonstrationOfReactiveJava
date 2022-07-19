@@ -18,14 +18,10 @@ import java.io.IOException;
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class ReactiveWebClientTestWithMockedServer {
-    private final static String REQUEST_URI = "home";
     private MockedWebServer mockedWebServer;
 
     @Autowired
-    private ReactiveWebClientTestUtils testUtils;
-
-    @Autowired
-    private ReactiveWebClient webClient;
+    private MessagesService messagesService;
 
     @BeforeAll
     void beforeAll() throws IOException {
@@ -42,11 +38,10 @@ public class ReactiveWebClientTestWithMockedServer {
         final String response = "Hello there!";
         mockedWebServer.responseWith(HttpStatus.OK, response);
 
-        final Mono<String> responseMono = this.webClient.getRequest(this.testUtils.createDummyHeaders(), REQUEST_URI, String.class, null);
+        final Mono<String> responseMono = this.messagesService.getHomeMessageFromExternalService();
 
         StepVerifier.create(responseMono)
                 .expectNext(response)
                 .verifyComplete();
     }
-
 }

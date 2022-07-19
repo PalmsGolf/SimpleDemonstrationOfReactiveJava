@@ -1,16 +1,20 @@
-package com.mike.projectreactortest.services;
+package com.mike.projectreactortest.general;
 
+import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 import reactor.test.StepVerifierOptions;
+import reactor.test.publisher.TestPublisher;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-public class SomeReactiveServiceTest {
+public class SomeReactiveTestsExample {
     private final static String ERROR_MESSAGE = "Dummy_error_message";
     private final static String APPLE = "Apple";
     private final static String BANANA = "Banana";
@@ -24,7 +28,8 @@ public class SomeReactiveServiceTest {
         StepVerifier.create(fluxSource)
                 .expectNext(APPLE)
                 .expectNextCount(2)
-                .expectComplete();
+                .expectComplete()
+                .log();
     }
 
     @Test
@@ -47,7 +52,7 @@ public class SomeReactiveServiceTest {
                 .expectNext(APPLE)
                 .expectNext(BANANA)
                 .consumeNextWith(fruit -> {
-                    if (!COCONUT.equals(fruit)) {
+                    if (!BANANA.equals(fruit)) {
                         throw new AssertionError("Test fail");
                     }
                 })
@@ -148,7 +153,71 @@ public class SomeReactiveServiceTest {
                 .expectComplete()
                 .verifyThenAssertThat()
                 .hasDropped(KIWI)
-                .tookLessThan(Duration.ofMillis(sleepDuration * 2));
+                .tookLessThan(Duration.ofMillis(sleepDuration -555));
+    }
+
+    @Test
+    public void timeBasedPublisherShowcase() {
+        StepVerifier.withVirtualTime(() -> Flux.interval(Duration.ofSeconds(1)).take(2))
+                .expectSubscription()
+                .expectNoEvent(Duration.ofSeconds(1))
+                .expectNext(0L)
+                .thenAwait(Duration.ofSeconds(1))
+                .expectNext(1L)
+                .verifyComplete();
+    }
+
+    @Test
+    public void testPublisherShowcase() {
+        final TestPublisher<String> testPublisher = TestPublisher.create();
+        UppercaseConverter uppercaseConverter = new UppercaseConverter(testPublisher.flux());
+
+        StepVerifier.create(uppercaseConverter.getUpperCase())
+                .then(() -> testPublisher.emit(APPLE, BANANA, COCONUT))
+                .expectNext("APPLE")
+                .expectNextCount(2)
+                .verifyComplete();
+    }
+
+    @Test
+    public void testBackpressureShowcase() {
+        Flux<Integer> limit = Flux.range(1, 25);
+        limit.limitRate(10);
+
+        StepVerifier.create(limit)
+                .expectSubscription()
+                .thenRequest(15)
+                .expectNextCount(10)
+                .expectNextCount(5)
+                .thenRequest(10)
+                .expectNextCount(10)
+                .verifyComplete();
+    }
+
+    @Test
+    public void testCancelCallbackShowcase() {
+        final Flux<String> fluxSource = fruitsFlux();
+        final AtomicBoolean isCanceled = new AtomicBoolean(false);
+
+        fluxSource.doOnCancel(() -> isCanceled.set(true)).doOnComplete(() -> {
+        }).subscribe(new BaseSubscriber<>() {
+            @Override
+            protected void hookOnNext(@NotNull String value) {
+                request(1);
+                if (value.equals(COCONUT)) {
+                    cancel();
+                }
+            }
+        });
+
+        StepVerifier.create(fluxSource)
+                .expectNext(APPLE)
+                .expectNext(BANANA)
+                .expectNext(COCONUT)
+                .expectComplete()
+                .verify();
+
+        Assertions.assertTrue(isCanceled.get());
     }
 
     private <T> Flux<T> appendError(Flux<T> source) {
@@ -157,5 +226,17 @@ public class SomeReactiveServiceTest {
 
     private Flux<String> fruitsFlux() {
         return Flux.fromIterable(List.of(APPLE, BANANA, COCONUT));
+    }
+
+    private class UppercaseConverter {
+        private final Flux<String> source;
+
+        public UppercaseConverter(Flux<String> source) {
+            this.source = source;
+        }
+
+        Flux<String> getUpperCase() {
+            return source.map(String::toUpperCase);
+        }
     }
 }

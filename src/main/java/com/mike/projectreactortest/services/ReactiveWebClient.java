@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import reactor.util.retry.RetrySpec;
@@ -29,18 +30,18 @@ public class ReactiveWebClient {
     }
 
     public <T> Mono<T> getRequest(final HttpHeaders headers, final String requestPath, final Class<T> elementClass, final MultiValueMap<String, String> queryParams) {
-        prepareRequestHeader(headers);
-        final URI uri = getRequestUri(requestPath, queryParams);
-        final RetrySpec retrySpec = getRetrySpec(headers);
+        prepareRequestHeader(headers);                               // Prepare headers
+        final URI uri = getRequestUri(requestPath, queryParams);     // Prepare URI
+        final RetrySpec retrySpec = getRetrySpec(headers);           // Prepare our retry strategy
 
-        return Mono.defer(() -> this.webClient
-                        .get()
-                        .uri(uri)
-                        .headers(consumer -> consumer.putAll(headers))
-                        .retrieve()
-                        .bodyToMono(elementClass))
-                .retryWhen(retrySpec)
-                .doOnError(Mono::error);
+        return this.webClient                                        // Using Reactive Web Client
+                .get()                                               // Defines request method
+                .uri(uri)                                            // Defines request URI
+                .headers(consumer -> consumer.putAll(headers))       // Defines request headers
+                .retrieve()                                          // Proceed to declare how to extract the response
+                .bodyToMono(elementClass)                            // Decodes body to mono
+                .retryWhen(retrySpec)                                // Defines retry strategy
+                .doOnError(Mono::error);                             // Adds behavior when error
     }
 
     private URI getRequestUri(final String path, final MultiValueMap<String, String> queryParams) {
