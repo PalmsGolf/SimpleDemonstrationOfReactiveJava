@@ -21,15 +21,11 @@ public class HomeService {
         this.messagesRepository = messagesRepository;
     }
 
-    public String getHomeMessage() {
-        final HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.USER_AGENT, "testUseragent");
+    public Mono<String> getHomeMessage() {
         final MultiValueMap<String, String> queryParams = new LinkedMultiValueMap<>();
         queryParams.set("action", "get");
 
-        final Mono<String> responseMono = this.webClient.getRequest(headers, GET_HOME_MESSAGE_PATH, String.class, queryParams);
-
-        return responseMono.block();
+        return this.webClient.getRequest(HttpHeaders.EMPTY, GET_HOME_MESSAGE_PATH, String.class, queryParams);
     }
 
     public Flux<String> getHomeMessages() {
